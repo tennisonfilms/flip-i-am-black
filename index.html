@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Preview - Flipbook</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Adobe Caslon Pro', 'Garamond', 'Baskerville', 'Georgia', serif;
+            background: #000000;
+            margin: 0;
+            padding: 0;
+            touch-action: pan-y pinch-zoom;
+        }
+
+        .flipbook-container {
+            position: relative;
+            width: 80vw;
+            height: 51vw;
+            max-height: 535px;
+            max-width: 900px;
+            background: #000000;
+            background-size: cover;
+            background-position: center 25%;
+            margin: 20px auto;
+            padding: 0;
+            touch-action: pan-y;
+        }
+
+        .book {
+            position: relative;
+            width: 55%;
+            height: 0;
+            padding-bottom: 44.92%; /* (980/1200) * 55% for two 600x980 pages */
+            perspective: 2500px;
+            margin: 0 auto;
+        }
+
+        .book > * {
+            position: absolute;
+        }
+
+        /* "Explore the book" image on left side when book is closed */
+        .see-for-yourself {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 22.5%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 1;
+            transition: opacity 0.3s ease-in-out;
+            pointer-events: none;
+            z-index: 60;
+        }
+
+        .see-for-yourself.hidden {
+            opacity: 0;
+        }
+
+        .see-for-yourself img {
+            max-width: 250%;
+            max-height: 90%;
+            object-fit: contain;
+        }
+
+        /* Page 14 - Static right page (underneath the flipping pages) */
+        .page-6 {
+            position: absolute;
+            width: 50%;
+            height: 100%;
+            background: #000000;
+            right: 0;
+            box-shadow: inset 10px 0 15px -10px rgba(0, 0, 0, 0.3);
+            transform: translateZ(0);
+            overflow: hidden;
+            z-index: -100;
+        }
+
+        /* Flipping pages that start on the right */
+        .flipping-page {
+            position: absolute;
+            width: 50%;
+            height: 100%;
+            right: 0;
+            transform-style: preserve-3d;
+            transform-origin: left center;
+            transition: transform 0.9s ease-in-out;
+            cursor: pointer;
+            z-index: 10;
+        }
+
+        .cover {
+            z-index: 20;
+        }
+
+        #flippingPage1 {
+            z-index: 15;
+        }
+
+        #flippingPage2 {
+            z-index: 9;
+            opacity: 0;
+            transition: transform 0.9s ease-in-out, opacity 0.3s ease-in-out;
+        }
+
+        #flippingPage2.visible {
+            opacity: 1;
+        }
+
+        #flippingPage3 {
+            z-index: 8;
+            opacity: 0;
+            transition: transform 0.9s ease-in-out, opacity 0.3s ease-in-out;
+        }
+
+        #flippingPage3.visible {
+            opacity: 1;
+        }
+
+        #flippingPage4 {
+            z-index: 7;
+            opacity: 0;
+            transition: transform 0.9s ease-in-out, opacity 0.3s ease-in-out;
+        }
+
+        #flippingPage4.visible {
+            opacity: 1;
+        }
+
+        #flippingPage5 {
+            z-index: 6;
+            opacity: 0;
+            transition: transform 0.9s ease-in-out, opacity 0.3s ease-in-out;
+        }
+
+        #flippingPage5.visible {
+            opacity: 1;
+        }
+
+        #flippingPage6 {
+            z-index: 5;
+            opacity: 0;
+            transition: transform 0.9s ease-in-out, opacity 0.3s ease-in-out;
+        }
+
+        #flippingPage6.visible {
+            opacity: 1;
+        }
+
+        .flipping-page.flipped {
+            transform: rotateY(-180deg);
+        }
+
+        /* Front and back of the flipping page */
+        .page-front,
+        .page-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: #000000;
+            backface-visibility: hidden;
+            transform: translateZ(0);
+            overflow: hidden;
+        }
+
+        .page-front {
+            box-shadow: inset 10px 0 15px -10px rgba(0, 0, 0, 0.3);
+        }
+
+        .page-back {
+            transform: rotateY(180deg);
+            box-shadow: inset -10px 0 15px -10px rgba(0, 0, 0, 0.3);
+        }
+
+        .page-content {
+            padding: 8% 6%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .page-content img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .page-content h2 {
+            font-size: max(2vw, 16px);
+            margin-bottom: 1vw;
+            color: #333;
+        }
+
+        .page-content p {
+            font-size: max(1vw, 12px);
+            line-height: 1.8;
+            color: #555;
+            text-align: justify;
+        }
+
+        .page-number {
+            position: absolute;
+            bottom: 5%;
+            font-size: max(1vw, 10px);
+            color: #999;
+            font-weight: bold;
+        }
+
+        .page-1 .page-number,
+        .page-back .page-number {
+            left: 6%;
+        }
+
+        .page-front .page-number,
+        .page-4 .page-number {
+            right: 6%;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-top: 1.5%;
+            width: 100%;
+        }
+
+        button {
+            padding: 0;
+            width: 50px;
+            height: 50px;
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        button img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        button:hover:not(:disabled) {
+            transform: scale(1.1);
+        }
+
+        button:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        /* Mobile layout - preserve full view without cropping */
+        @media (max-width: 768px) {
+            .flipbook-container {
+                width: 95vw;
+                height: 70vw;
+                max-height: 100vh;
+                transform: scale(1.3);
+            }
+            
+            .controls {
+                margin-top: 2%;
+            }
+            
+            button {
+                width: 38px;
+                height: 38px;
+            }
+        }
+
+    </style>
+</head>
+<body>
+    <div class="flipbook-container">
+        <div class="book">
+            
+            <!-- "Explore the book" image - visible when book is closed -->
+            <div class="see-for-yourself" id="seeForYourself">
+                <img src="https://cdn.shopify.com/s/files/1/0695/2052/3509/files/Flipbook-explore-the-book.png?v=1763592781" alt="Explore the book">
+            </div>
+            
+            <!-- Page 14 - Static right page (underneath) -->
+            <div class="page-6">
+                <div class="page-content" style="padding: 0;">
+                    <img src="https://cdn.shopify.com/s/files/1/0695/2052/3509/files/Flipbook-Leader-14-v2.jpg?v=1763615145" alt="Page 14">
+                </div>
+            </div>
+
+            <!-- Flipping page: Page 2 (front) and Page 3 (back) -->
+            <div class="flipping-page" id="flippingPage1">
+                <div class="page-front">
+                    <div class="page-content" style="padding: 0;">
+                        <img src="https://cdn.shopify.com/s/files/1/0695/2052/3509/files/Flipbook-Leader-2.jpg?v=1763592639" alt="Page 2">
+                    </div>
+                </div>
+                <div class="page-back">
+                    <div class="page-content" style="padding: 0;">
+                        <img src="https://cdn.shopify.com/s/files/1/0695/2052/3509/files/Flipbook-Leader-3.jpg?v=1763592638" alt="Page 3">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Flipping page: Page 4 (front) and Page 5 (back) -->
+            <div class="flipping-page" id="flippingPage2">
+                <div class="page-front">
+                    <div class="page-content" style="padding: 0;">
+                        <img src="https://cdn.shopify.com/s/files/1/0695/2052/3509/files/Flipbook-Leader-4.jpg?v=1763592636" alt="Page 4">
+                    </div>
+                </div>
+                <div class="page-back">
+                    <div class="page-content" style="padding: 0;">
+                        <img src="https://cdn.shopify.com/s/files/1/0695/2052/3509/files/Flipbook-Leader-5.jpg?v=1763592637" alt="Page 5">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Flipping page: Page 6 (front) and Page 7 (back) -->
+            <div class="flipping-page" id="flippingPage3">
+                <div class="page-front">
+                    <div class="page-content" style="padding: 0;">
+                        <img src="https://cdn.shopify.com/s/files/1/0695/2052/3509/files/Flipbook-Leader-6.jpg?v=1763592639" alt="Page 6">
+                    </div>
+                </div>
+                <div class="page-back">
+                    <div class="page-content" style="padding: 0;">
+                        <img src="https://cdn.shopify.com/s/files/1/0695/2052/3509/files/Flipbook-Leader-7.jpg?v=1763592639" alt="Page 7">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Flipping page: Page 8 (front) and Page 9 (back) -->
+            <div class="flipping-page" id="flippingPage4">
+                <div class="page-front">
+                    <div class="page-content" style="padding: 0;">
+                        <img src="https://cdn.shopify.com/s/files/1/0695/2052/3509/files/Flipbook-Leader-8.jpg?v=1763592637" alt="Page 8">
+                    </div>
+                </div>
+                <div class="page-back">
+                    <div class="page-content" style="padding: 0;">
+                        <img src="https://cdn.shopify.com/s/files/1/0695/2052/3509/files/Flipbook-Leader-9.jpg?v=1763592639" alt="Page 9">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Flipping page: Page 10 (front) and Page 11 (back) -->
+            <div class="flipping-page" id="flippingPage5">
+                <div class="page-front">
+                    <div class="page-content" style="padding: 0;">
+                        <img src="https://cdn.shopify.com/s/files/1/0695/2052/3509/files/Flipbook-Leader-10.jpg?v=1763592639" alt="Page 10">
+                    </div>
+                </div>
+                <div class="page-back">
+                    <div class="page-content" style="padding: 0;">
+                        <img src="https://cdn.shopify.com/s/files/1/0695/2052/3509/files/Flipbook-Leader-11.jpg?v=1763592638" alt="Page 11">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Flipping page: Page 12 (front) and Page 13 (back) -->
+            <div class="flipping-page" id="flippingPage6">
+                <div class="page-front">
+                    <div class="page-content" style="padding: 0;">
+                        <img src="https://cdn.shopify.com/s/files/1/0695/2052/3509/files/Flipbook-Leader-12.jpg?v=1763592638" alt="Page 12">
+                    </div>
+                </div>
+                <div class="page-back">
+                    <div class="page-content" style="padding: 0;">
+                        <img src="https://cdn.shopify.com/s/files/1/0695/2052/3509/files/Flipbook-Leader-13-v2.jpg?v=1763616121" alt="Page 13">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cover - sits on top initially -->
+            <div class="flipping-page cover" id="cover">
+                <div class="page-front">
+                    <div class="page-content" style="padding: 0;">
+                        <img src="https://cdn.shopify.com/s/files/1/0695/2052/3509/files/Flipbook-Leader-0.jpg?v=1763592636" alt="Cover">
+                    </div>
+                </div>
+                <div class="page-back">
+                    <div class="page-content" style="padding: 0;">
+                        <img src="https://cdn.shopify.com/s/files/1/0695/2052/3509/files/Flipbook-Leader-1.jpg?v=1763592639" alt="Page 1">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button id="prevBtn" disabled>
+                <img src="https://cdn.shopify.com/s/files/1/0695/2052/3509/files/Flipbook-left-arrow.png?v=1763589713" alt="Previous">
+            </button>
+            <button id="nextBtn">
+                <img src="https://cdn.shopify.com/s/files/1/0695/2052/3509/files/Flipbook-right-arrow.png?v=1763589713" alt="Next">
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let coverFlipped = false;
+        let page1Flipped = false;
+        let page2Flipped = false;
+        let page3Flipped = false;
+        let page4Flipped = false;
+        let page5Flipped = false;
+        let page6Flipped = false;
+        const cover = document.getElementById('cover');
+        const flippingPage1 = document.getElementById('flippingPage1');
+        const flippingPage2 = document.getElementById('flippingPage2');
+        const flippingPage3 = document.getElementById('flippingPage3');
+        const flippingPage4 = document.getElementById('flippingPage4');
+        const flippingPage5 = document.getElementById('flippingPage5');
+        const flippingPage6 = document.getElementById('flippingPage6');
+        const nextBtn = document.getElementById('nextBtn');
+        const prevBtn = document.getElementById('prevBtn');
+        const seeForYourself = document.getElementById('seeForYourself');
+
+        function updateButtons() {
+            if (!coverFlipped) {
+                prevBtn.disabled = true;
+                nextBtn.disabled = false;
+                seeForYourself.classList.remove('hidden');
+            } else if (page5Flipped && !page6Flipped) {
+                prevBtn.disabled = false;
+                nextBtn.disabled = false;
+                seeForYourself.classList.add('hidden');
+            } else if (page6Flipped) {
+                prevBtn.disabled = false;
+                nextBtn.disabled = true;
+                seeForYourself.classList.add('hidden');
+            } else {
+                prevBtn.disabled = false;
+                nextBtn.disabled = false;
+                seeForYourself.classList.add('hidden');
+            }
+        }
+
+        nextBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (!coverFlipped) {
+                coverFlipped = true;
+                updateButtons();
+                cover.classList.add('flipped');
+            } else if (!page1Flipped) {
+                page1Flipped = true;
+                updateButtons();
+                flippingPage1.style.zIndex = '30';
+                flippingPage1.classList.add('flipped');
+                flippingPage2.classList.add('visible');
+            } else if (!page2Flipped) {
+                page2Flipped = true;
+                updateButtons();
+                flippingPage2.style.zIndex = '40';
+                flippingPage2.classList.add('flipped');
+                flippingPage3.classList.add('visible');
+            } else if (!page3Flipped) {
+                page3Flipped = true;
+                updateButtons();
+                flippingPage3.style.zIndex = '50';
+                flippingPage3.classList.add('flipped');
+                flippingPage4.classList.add('visible');
+            } else if (!page4Flipped) {
+                page4Flipped = true;
+                updateButtons();
+                flippingPage4.style.zIndex = '60';
+                flippingPage4.classList.add('flipped');
+                flippingPage5.classList.add('visible');
+            } else if (!page5Flipped) {
+                page5Flipped = true;
+                updateButtons();
+                flippingPage5.style.zIndex = '70';
+                flippingPage5.classList.add('flipped');
+                flippingPage6.classList.add('visible');
+            } else if (!page6Flipped) {
+                page6Flipped = true;
+                updateButtons();
+                flippingPage6.style.zIndex = '80';
+                flippingPage6.classList.add('flipped');
+            }
+        });
+
+        prevBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (page6Flipped) {
+                page6Flipped = false;
+                updateButtons();
+                flippingPage6.classList.remove('flipped');
+                setTimeout(() => {
+                    flippingPage6.style.zIndex = '5';
+                }, 900);
+            } else if (page5Flipped) {
+                page5Flipped = false;
+                updateButtons();
+                flippingPage5.classList.remove('flipped');
+                setTimeout(() => {
+                    flippingPage5.style.zIndex = '6';
+                    flippingPage6.classList.remove('visible');
+                }, 900);
+            } else if (page4Flipped) {
+                page4Flipped = false;
+                updateButtons();
+                flippingPage4.classList.remove('flipped');
+                setTimeout(() => {
+                    flippingPage4.style.zIndex = '7';
+                    flippingPage5.classList.remove('visible');
+                }, 900);
+            } else if (page3Flipped) {
+                page3Flipped = false;
+                updateButtons();
+                flippingPage3.classList.remove('flipped');
+                setTimeout(() => {
+                    flippingPage3.style.zIndex = '8';
+                    flippingPage4.classList.remove('visible');
+                }, 900);
+            } else if (page2Flipped) {
+                page2Flipped = false;
+                updateButtons();
+                flippingPage2.classList.remove('flipped');
+                setTimeout(() => {
+                    flippingPage2.style.zIndex = '9';
+                    flippingPage3.classList.remove('visible');
+                }, 900);
+            } else if (page1Flipped) {
+                page1Flipped = false;
+                updateButtons();
+                flippingPage1.classList.remove('flipped');
+                setTimeout(() => {
+                    flippingPage1.style.zIndex = '15';
+                    flippingPage2.classList.remove('visible');
+                }, 900);
+            } else if (coverFlipped) {
+                coverFlipped = false;
+                updateButtons();
+                cover.classList.remove('flipped');
+            }
+        });
+
+        // Click on cover to open or close
+        cover.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (!coverFlipped) {
+                coverFlipped = true;
+                updateButtons();
+                cover.classList.add('flipped');
+            } else if (!page1Flipped) {
+                coverFlipped = false;
+                updateButtons();
+                cover.classList.remove('flipped');
+            }
+        });
+
+        // Click handlers for all flipping pages
+        flippingPage1.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (coverFlipped && !page1Flipped) {
+                page1Flipped = true;
+                updateButtons();
+                flippingPage1.style.zIndex = '30';
+                flippingPage1.classList.add('flipped');
+                flippingPage2.classList.add('visible');
+            } else if (page1Flipped && !page2Flipped) {
+                page1Flipped = false;
+                updateButtons();
+                flippingPage1.classList.remove('flipped');
+                setTimeout(() => {
+                    flippingPage1.style.zIndex = '15';
+                    flippingPage2.classList.remove('visible');
+                }, 900);
+            }
+        });
+
+        flippingPage2.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (page1Flipped && !page2Flipped) {
+                page2Flipped = true;
+                updateButtons();
+                flippingPage2.style.zIndex = '40';
+                flippingPage2.classList.add('flipped');
+                flippingPage3.classList.add('visible');
+            } else if (page2Flipped && !page3Flipped) {
+                page2Flipped = false;
+                updateButtons();
+                flippingPage2.classList.remove('flipped');
+                setTimeout(() => {
+                    flippingPage2.style.zIndex = '9';
+                    flippingPage3.classList.remove('visible');
+                }, 900);
+            }
+        });
+
+        flippingPage3.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (page2Flipped && !page3Flipped) {
+                page3Flipped = true;
+                updateButtons();
+                flippingPage3.style.zIndex = '50';
+                flippingPage3.classList.add('flipped');
+                flippingPage4.classList.add('visible');
+            } else if (page3Flipped && !page4Flipped) {
+                page3Flipped = false;
+                updateButtons();
+                flippingPage3.classList.remove('flipped');
+                setTimeout(() => {
+                    flippingPage3.style.zIndex = '8';
+                    flippingPage4.classList.remove('visible');
+                }, 900);
+            }
+        });
+
+        flippingPage4.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (page3Flipped && !page4Flipped) {
+                page4Flipped = true;
+                updateButtons();
+                flippingPage4.style.zIndex = '60';
+                flippingPage4.classList.add('flipped');
+                flippingPage5.classList.add('visible');
+            } else if (page4Flipped && !page5Flipped) {
+                page4Flipped = false;
+                updateButtons();
+                flippingPage4.classList.remove('flipped');
+                setTimeout(() => {
+                    flippingPage4.style.zIndex = '7';
+                    flippingPage5.classList.remove('visible');
+                }, 900);
+            }
+        });
+
+        flippingPage5.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (page4Flipped && !page5Flipped) {
+                page5Flipped = true;
+                updateButtons();
+                flippingPage5.style.zIndex = '70';
+                flippingPage5.classList.add('flipped');
+                flippingPage6.classList.add('visible');
+            } else if (page5Flipped && !page6Flipped) {
+                page5Flipped = false;
+                updateButtons();
+                flippingPage5.classList.remove('flipped');
+                setTimeout(() => {
+                    flippingPage5.style.zIndex = '6';
+                    flippingPage6.classList.remove('visible');
+                }, 900);
+            }
+        });
+
+        flippingPage6.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (page5Flipped && !page6Flipped) {
+                page6Flipped = true;
+                updateButtons();
+                flippingPage6.style.zIndex = '80';
+                flippingPage6.classList.add('flipped');
+            } else if (page6Flipped) {
+                page6Flipped = false;
+                updateButtons();
+                flippingPage6.classList.remove('flipped');
+                setTimeout(() => {
+                    flippingPage6.style.zIndex = '5';
+                }, 900);
+            }
+        });
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight') {
+                if (!nextBtn.disabled) {
+                    nextBtn.click();
+                }
+            } else if (e.key === 'ArrowLeft') {
+                if (!prevBtn.disabled) {
+                    prevBtn.click();
+                }
+            }
+        });
+
+        updateButtons();
+
+        // Touch/swipe support for mobile
+        let touchStartX = 0;
+        let touchEndX = 0;
+        
+        document.addEventListener('touchstart', (e) => {
+            touchStartX = e.changedTouches[0].screenX;
+        });
+        
+        document.addEventListener('touchend', (e) => {
+            touchEndX = e.changedTouches[0].screenX;
+            handleSwipe();
+        });
+        
+        function handleSwipe() {
+            const swipeThreshold = 50;
+            const diff = touchStartX - touchEndX;
+            
+            if (Math.abs(diff) > swipeThreshold) {
+                if (diff > 0) {
+                    if (!nextBtn.disabled) {
+                        nextBtn.click();
+                    }
+                } else {
+                    if (!prevBtn.disabled) {
+                        prevBtn.click();
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
